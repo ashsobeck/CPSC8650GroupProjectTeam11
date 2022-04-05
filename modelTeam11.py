@@ -7,6 +7,8 @@ Created on Fri Apr  1 16:30:42 2022
 
 import tensorflow as tf
 from tensorflow import data
+from tensorflow import keras
+from tensorflow.keras import layers
 import matplotlib.pyplot as plt
 import nibabel
 import pandas as pd
@@ -95,6 +97,24 @@ def add_dim_to_img(img, label):
     img = tf.expand_dims(img, axis=3)
     return img, label
 
+def make_model(input_shape):
+    # going to be using a 3d convolutional NN
+    imgs = keras.Input(input_shape)
+    
+    model = layers.Conv3D(filters=256, kernel_size=3, activation='relu')(imgs)
+    model = layers.MaxPooling3D()(model)
+    model = layers.Conv3D(filters=256, kernel_size=3, activation='relu')(model)
+    model = layers.MaxPooling3D()(model)
+    model = layers.Conv3D(filters=128, kernel_size=3)
+    model = layers.MaxPooling3D()(model)
+    
+    model = layers.GlobalAveragePooling3D()(model)
+    model = layers.Dense(256, activation='relu')(model)
+    # 3 is the number of classes that we have 
+    # yes-no; no-yes; no-no
+    outputs = layers.Dense(3, activation='softmax')(model)
+    full_model = keras.Model(inputs=imgs, outputs=outputs)
+    return full_model
 def main():
     dataset = MRIData('./BET_BSE_DATA/Label_file.csv')
     (train_labels, train_imgs, test_labels, test_imgs) = dataset.get_data()
@@ -125,6 +145,20 @@ def main():
         .batch(batch_size)
         .prefetch(1)
     )
+    input_shape = (256,256,150,1)
+    
+    model = make_model(input_shape)
+    model.summary()
+    learning_rate = 1e-3
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+                  loss=keras.losses.CategoricalCrossentropy(),
+                  metrics=[keras.metrics.CategoricalAccuracy(name="acc")],
+                  callbacks=[
+                        keras.callbacks.ModelCheckpoint('./team11_model_save', 
+                                                        save_best_only=True)  
+                      ]
+                  )
+    model.fit(train_dataset, epochs=20, shuffle=True)
     
 if __name__ == "__main__":
     main()
