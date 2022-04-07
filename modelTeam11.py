@@ -14,6 +14,7 @@ import nibabel
 import pandas as pd
 import numpy as np
 import math
+from scipy.ndimage import zoom
 
 a = nibabel.load('./BET_BSE_DATA/files/IXI002-Guys-0828-T1_bet_09.nii').get_fdata()
 a = np.array(a)
@@ -46,7 +47,8 @@ class MRIData():
     def get_img(self, filename):
         img = nibabel.load(f'./BET_BSE_DATA/files/{filename}').get_fdata()
         img = np.array(img)
-        return img if img.shape == (256, 256, 150) else None
+        img = zoom(img, (.5,.5,.5))
+        return img
     
     def get_data(self):
        
@@ -54,11 +56,11 @@ class MRIData():
         # pass in filename from dataframe into the get_img fn
        
         print('yes no')
-        yes_no_images = np.array([self.get_img(self.facial_feature_yes_brain_loss_no['Filename'][i]) for i in self.facial_feature_yes_brain_loss_no.index.tolist()[:100]], dtype=object)
+        yes_no_images = np.array([self.get_img(self.facial_feature_yes_brain_loss_no['Filename'][i]) for i in self.facial_feature_yes_brain_loss_no.index.tolist()], dtype=object)
         # filter out None values
         yes_no_images = [img for img in yes_no_images if img is not None]
         print('no yes')
-        no_yes_images = np.array([self.get_img(self.facial_feature_no_brain_loss_yes['Filename'][i]) for i in self.facial_feature_no_brain_loss_yes.index.tolist()[:100]], dtype=object)
+        no_yes_images = np.array([self.get_img(self.facial_feature_no_brain_loss_yes['Filename'][i]) for i in self.facial_feature_no_brain_loss_yes.index.tolist()], dtype=object)
         no_yes_images = [img for img in no_yes_images if img is not None]
         print('no no ')
         no_no_images = np.array([self.get_img(self.facial_feature_no_brain_loss_no['Filename'][i]) for i in self.facial_feature_no_brain_loss_no.index.tolist()], dtype=object)
@@ -66,7 +68,6 @@ class MRIData():
         
         yes_no_labels = np.array([0 for _ in range(len(yes_no_images))])
         no_yes_labels = np.array([1 for _ in range(len(no_yes_images))])
-        # less than 100 in no no
         no_no_labels = np.array([2 for _ in range(len(no_no_images))])
         
         split_yes_no_idx = math.floor(.85 * len(yes_no_images))
@@ -90,22 +91,21 @@ class MRIData():
                                     no_yes_images[split_no_yes_idx:],
                                     no_no_images[split_no_no_idx:]),
                                     axis=0)
-   
+        print(train_labels.shape)
         return (train_labels, train_imgs, test_labels, test_imgs)
 
 def add_dim_to_img(img, label):
     img = tf.expand_dims(img, axis=3)
     return img, label
 
-def make_model(input_shape):
+def make_model(w, h, d):
     # going to be using a 3d convolutional NN
-    imgs = keras.Input(input_shape)
-    
-    model = layers.Conv3D(filters=256, kernel_size=3, activation='relu')(imgs)
+    imgs = keras.Input((w, h, d, 1))
+    print(imgs)
+    model = layers.Conv3D(filters=128, kernel_size=3, activation='relu')(imgs)
     model = layers.MaxPooling3D()(model)
-    model = layers.Conv3D(filters=256, kernel_size=3, activation='relu')(model)
-    model = layers.MaxPooling3D()(model)
-    model = layers.Conv3D(filters=128, kernel_size=3)
+   
+    model = layers.Conv3D(filters=64, kernel_size=3)(model)
     model = layers.MaxPooling3D()(model)
     
     model = layers.GlobalAveragePooling3D()(model)
@@ -113,7 +113,7 @@ def make_model(input_shape):
     # 3 is the number of classes that we have 
     # yes-no; no-yes; no-no
     outputs = layers.Dense(3, activation='softmax')(model)
-    full_model = keras.Model(inputs=imgs, outputs=outputs)
+    full_model = keras.Model(imgs, outputs, name='cnn')
     return full_model
 def main():
     dataset = MRIData('./BET_BSE_DATA/Label_file.csv')
@@ -130,35 +130,48 @@ def main():
     train_dl = data.Dataset.from_tensor_slices((train_imgs, train_labels))
     test_dl = data.Dataset.from_tensor_slices((test_imgs, test_labels))
     
-    batch_size = 8
+    batch_size = 1
     
     train_dataset = (
         train_dl.shuffle(len(train_imgs))
         .map(add_dim_to_img)
         .batch(batch_size)
-        .prefetch(1)
     )
-    
+    print(train_dataset)
+    print(train_dataset.take(1))
     test_dataset = (
         test_dl.shuffle(len(test_imgs))
         .map(add_dim_to_img)
         .batch(batch_size)
-        .prefetch(1)
     )
-    input_shape = (256,256,150,1)
+    # input_shape = (256,256,150,1)
     
-    model = make_model(input_shape)
+    model = make_model(w=256, h=256, d=30)
     model.summary()
     learning_rate = 1e-3
     model.compile(optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
-                  loss=keras.losses.CategoricalCrossentropy(),
-                  metrics=[keras.metrics.CategoricalAccuracy(name="acc")],
-                  callbacks=[
-                        keras.callbacks.ModelCheckpoint('./team11_model_save', 
-                                                        save_best_only=True)  
-                      ]
+                  loss=keras.losses.SparseCategoricalCrossentropy(),
+                  metrics=[keras.metrics.SparseCategoricalAccuracy()]
                   )
-    model.fit(train_dataset, epochs=20, shuffle=True)
+    model.fit(train_dataset, 
+              epochs=20, 
+              shuffle=True,
+              callbacks=[
+                  keras.callbacks.ModelCheckpoint('./team11_model_save', 
+                                                  monitor="val_loss",
+                                                  mode="max",
+                                                  save_freq='epoch',
+                                                  save_best_only=True)  
+                ],
+              validation_data=(test_dataset)
+              )
+    
+    
+    model.load_weights('./team11_model_save')
+    
+    prediction = model.predict(test_dataset)
+    print(prediction)
+    
     
 if __name__ == "__main__":
     main()
