@@ -150,7 +150,7 @@ def main():
         .map(add_dim_to_img)
         .batch(batch_size)
     )
-    # input_shape = (256,256,150,1)
+
     
     model = make_model(w=128, h=128, d=75)
     model.summary()
@@ -159,8 +159,8 @@ def main():
                   loss=keras.losses.SparseCategoricalCrossentropy(),
                   metrics=[keras.metrics.SparseCategoricalAccuracy()]
                   )
-    model.fit(train_dataset, 
-              epochs=20, 
+    train = model.fit(train_dataset, 
+              epochs=100, 
               shuffle=True,
               callbacks=[
                   keras.callbacks.ModelCheckpoint(filepath='./team11_model_save', 
@@ -183,7 +183,23 @@ def main():
     results = model.evaluate(test_dataset)
     for result in results:
         print(result)
+    plt.plot(train.history['accuracy'])
+    plt.plot(train.history['val_accuracy'])
+    plt.title('accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('epochs')
+    plt.legend(['train','test'])
+    plt.savefig('./acc_chart.png')
+    plt.show()
     
+    plt.plot(train.history['loss'])
+    plt.plot(train.history['val_loss'])
+    plt.title('loss')
+    plt.ylabel('loss')
+    plt.xlabel('epochs')
+    plt.legend(['train','test'])
+    plt.savefig('./loss_chart.png')
+    plt.show()
 if __name__ == "__main__":
     main()
             
