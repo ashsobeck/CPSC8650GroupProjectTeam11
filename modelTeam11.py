@@ -47,7 +47,12 @@ class MRIData():
     def get_img(self, filename):
         img = nibabel.load(f'./BET_BSE_DATA/files/{filename}').get_fdata()
         img = np.array(img)
-        img = zoom(img, (.5,.5,.5))
+        new_depth = 75
+        # need this because not every depth is the same, but we want them 
+        # all to have same depth
+        # every width and height is the same within the data 
+        depth_resizing_factor = new_depth / img.shape[2]
+        img = zoom(img, (.5,.5,depth_resizing_factor))
         return img
     
     def get_data(self):
@@ -105,7 +110,7 @@ def make_model(w, h, d):
     model = layers.Conv3D(filters=128, kernel_size=3, activation='relu')(imgs)
     model = layers.MaxPooling3D()(model)
    
-    model = layers.Conv3D(filters=64, kernel_size=3)(model)
+    model = layers.Conv3D(filters=256, kernel_size=3)(model)
     model = layers.MaxPooling3D()(model)
     
     model = layers.GlobalAveragePooling3D()(model)
@@ -118,7 +123,8 @@ def make_model(w, h, d):
 def main():
     dataset = MRIData('./BET_BSE_DATA/Label_file.csv')
     (train_labels, train_imgs, test_labels, test_imgs) = dataset.get_data()
-    
+    train_imgs = np.asarray(train_imgs).astype(np.float32)
+    test_imgs = np.asarray(test_imgs).astype(np.float32)
     print(f'train_labels shape: {train_labels.shape}')
     print(f'train_imgs shape: {train_imgs[0].shape}')
     print(f'train_imgs shape: {train_imgs.shape}')
@@ -146,7 +152,7 @@ def main():
     )
     # input_shape = (256,256,150,1)
     
-    model = make_model(w=256, h=256, d=30)
+    model = make_model(w=128, h=128, d=75)
     model.summary()
     learning_rate = 1e-3
     model.compile(optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
@@ -157,7 +163,7 @@ def main():
               epochs=20, 
               shuffle=True,
               callbacks=[
-                  keras.callbacks.ModelCheckpoint('./team11_model_save', 
+                  keras.callbacks.ModelCheckpoint(filepath='./team11_model_save', 
                                                   monitor="val_loss",
                                                   mode="max",
                                                   save_freq='epoch',
@@ -169,9 +175,14 @@ def main():
     
     model.load_weights('./team11_model_save')
     
-    prediction = model.predict(test_dataset)
-    print(prediction)
-    
+    for img, label in test_dataset:
+        pred = model.predict(img)
+        print(f'predicted class: {tf.math.argmax(pred, axis=1)}')
+        print(f'actual label: {label}')
+            
+    results = model.evaluate(test_dataset)
+    for result in results:
+        print(result)
     
 if __name__ == "__main__":
     main()
