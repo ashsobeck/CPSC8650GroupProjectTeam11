@@ -16,10 +16,10 @@ import numpy as np
 import math
 from scipy.ndimage import zoom
 
-a = nibabel.load('./BET_BSE_DATA/files/IXI002-Guys-0828-T1_bet_09.nii').get_fdata()
-a = np.array(a)
-print(a.shape)
-plt.imshow(np.squeeze(a[:,:,30]), cmap="gray")
+# a = nibabel.load('./BET_BSE_DATA/files/IXI002-Guys-0828-T1_bet_09.nii').get_fdata()
+# a = np.array(a)
+# print(a.shape)
+# plt.imshow(np.squeeze(a[:,:,30]), cmap="gray")
 
 class MRIData():
     def __init__(self, file):
@@ -177,22 +177,27 @@ def main():
     
     model.load_weights('./team11_model_save')
     
+    classes =["identifiable-no-brain-damage", 
+              "not-identifiable-with-brain-damage",
+              "not-identifiable-no-brain-damage"
+              ]
     for img, label in test_dataset:
         pred = model.predict(img)
-        print(f'predicted class: {tf.math.argmax(pred, axis=1)}')
-        print(f'actual label: {label}')
+        print(f'predicted class: {classes[tf.math.argmax(pred, axis=1)[0]]}')
+        print(f'actual label: {classes[label[0]]}')
             
     results = model.evaluate(test_dataset)
     for result in results:
         print(result)
-    plt.plot(train.history['accuracy'])
-    plt.plot(train.history['val_accuracy'])
+    plt.plot(train.history['sparse_categorical_accuracy'])
+    plt.plot(train.history['val_sparse_categorical_accuracy'])
     plt.title('accuracy')
     plt.ylabel('accuracy')
     plt.xlabel('epochs')
     plt.legend(['train','test'])
     plt.savefig('./acc_chart.png')
     plt.show()
+    plt.clf()
     
     plt.plot(train.history['loss'])
     plt.plot(train.history['val_loss'])
