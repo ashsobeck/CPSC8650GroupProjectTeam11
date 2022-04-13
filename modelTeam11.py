@@ -112,9 +112,11 @@ def make_model(w, h, d):
    
     model = layers.Conv3D(filters=256, kernel_size=3)(model)
     model = layers.MaxPooling3D()(model)
+    model = layers.SpatialDropout3D(.4)(model)
     
     model = layers.GlobalAveragePooling3D()(model)
     model = layers.Dense(256, activation='relu')(model)
+    model = layers.Dropout(.5)(model)
     # 3 is the number of classes that we have 
     # yes-no; no-yes; no-no
     outputs = layers.Dense(3, activation='softmax')(model)
