@@ -16,11 +16,6 @@ import numpy as np
 import math
 from scipy.ndimage import zoom
 
-# a = nibabel.load('./BET_BSE_DATA/files/IXI002-Guys-0828-T1_bet_09.nii').get_fdata()
-# a = np.array(a)
-# print(a.shape)
-# plt.imshow(np.squeeze(a[:,:,30]), cmap="gray")
-
 class MRIData():
     def __init__(self, file):
         self.file = file
@@ -139,6 +134,7 @@ def main():
     test_dl = data.Dataset.from_tensor_slices((test_imgs, test_labels))
     
     batch_size = 1
+    epochs = 100
     
     train_dataset = (
         train_dl.shuffle(len(train_imgs))
@@ -162,10 +158,10 @@ def main():
                   metrics=[keras.metrics.SparseCategoricalAccuracy()]
                   )
     train = model.fit(train_dataset, 
-              epochs=100, 
+              epochs=epochs, 
               shuffle=True,
               callbacks=[
-                  keras.callbacks.ModelCheckpoint(filepath='./team11_model_save', 
+                  keras.callbacks.ModelCheckpoint(filepath='./team11_model_save_v2', 
                                                   monitor="val_loss",
                                                   mode="max",
                                                   save_freq='epoch',
@@ -175,7 +171,7 @@ def main():
               )
     
     
-    model.load_weights('./team11_model_save')
+    model.load_weights('./team11_model_save_v2')
     
     classes =["identifiable-no-brain-damage", 
               "not-identifiable-with-brain-damage",
@@ -195,7 +191,7 @@ def main():
     plt.ylabel('accuracy')
     plt.xlabel('epochs')
     plt.legend(['train','test'])
-    plt.savefig('./acc_chart.png')
+    plt.savefig('./acc_chart_v2.png')
     plt.show()
     plt.clf()
     
@@ -205,7 +201,7 @@ def main():
     plt.ylabel('loss')
     plt.xlabel('epochs')
     plt.legend(['train','test'])
-    plt.savefig('./loss_chart.png')
+    plt.savefig('./loss_chart_v2.png')
     plt.show()
 if __name__ == "__main__":
     main()
