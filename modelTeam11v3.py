@@ -15,6 +15,7 @@ import pandas as pd
 import numpy as np
 import math
 from scipy.ndimage import zoom
+import os
 
 class MRIData():
     def __init__(self, file):
@@ -101,11 +102,10 @@ def add_dim_to_img(img, label):
 def make_model(w, h, d):
     # going to be using a 3d convolutional NN
     imgs = keras.Input((w, h, d, 1))
-    print(imgs)
     model = layers.Conv3D(filters=128, kernel_size=3, activation='relu')(imgs)
     model = layers.MaxPooling3D()(model)
    
-    model = layers.Conv3D(filters=256, kernel_size=3)(model)
+    model = layers.Conv3D(filters=256, kernel_size=3, activation='relu')(model)
     model = layers.MaxPooling3D()(model)
     model = layers.SpatialDropout3D(.4)(model)
     
@@ -118,6 +118,7 @@ def make_model(w, h, d):
     full_model = keras.Model(imgs, outputs, name='cnn')
     return full_model
 def main():
+    
     dataset = MRIData('./BET_BSE_DATA/Label_file.csv')
     (train_labels, train_imgs, test_labels, test_imgs) = dataset.get_data()
     train_imgs = np.asarray(train_imgs).astype(np.float32)
@@ -133,22 +134,22 @@ def main():
     train_dl = data.Dataset.from_tensor_slices((train_imgs, train_labels))
     test_dl = data.Dataset.from_tensor_slices((test_imgs, test_labels))
     
-    batch_size = 1
-    epochs = 35
+    
+    batch_size = 2
+    epochs = 100
     
     train_dataset = (
-        train_dl.shuffle(len(train_imgs))
+        train_dl.shuffle(len(train_dl))
         .map(add_dim_to_img)
         .batch(batch_size)
     )
     print(train_dataset)
     print(train_dataset.take(1))
     test_dataset = (
-        test_dl.shuffle(len(test_imgs))
+        test_dl.shuffle(len(test_dl))
         .map(add_dim_to_img)
         .batch(batch_size)
     )
-
     
     model = make_model(w=128, h=128, d=75)
     model.summary()
@@ -171,7 +172,7 @@ def main():
               )
     
     
-    model.load_weights('./team11_model_save')
+    model.load_weights('./team11_model_save_v3')
     
     classes =["identifiable-no-brain-damage", 
               "not-identifiable-with-brain-damage",
