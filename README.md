@@ -11,3 +11,25 @@ Our dataset comes from Dr. Zijun Wang's research group. Using the BET and BSE to
 Trying to run this model will assume that you have unzipped the original zip file, as well as all of the `.gz` files for the `.nii` data
 
 This helps us save on time spent by the script
+
+## Our Results
+
+### First Iteration
+
+Our first iteration of our model is shown in `modelTeam11v1.py`. Here are the charts from training:
+
+![loss_v1](./loss_chart_v1.png)
+![acc_v1](./acc_chart_v1.png)
+
+### Second Iteration
+
+Our second iteration is in the file `modelTeam11v2.py` and adds in Dropout layers.
+![loss_v2](./loss_chart_v2.png)
+![acc_v2](./acc_chart_v2.png)
+
+### Third Iteration
+
+Our third iteration is in the file `modelTeam11v3.py` and changes the hyperparameters used.
+
+![loss_v3](./loss_chart_v3.png)
+![acc_v3](./acc_chart_v3.png)
